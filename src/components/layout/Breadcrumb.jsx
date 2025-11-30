@@ -70,8 +70,7 @@ export function DynamicBreadcrumb() {
         label.charAt(0).toUpperCase() +
         label
           .slice(1)
-          .replace(/-/g, ' ')
-          .replace(/\b\w/g, (l) => l.toUpperCase());
+          .replace(/-/g, ' ');
     }
 
     return {
