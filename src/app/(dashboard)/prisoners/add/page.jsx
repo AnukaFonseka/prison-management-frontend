@@ -288,7 +288,7 @@ export default function AddPrisonerPage() {
       <Card className="bg-muted/50">
         <CardContent className="pt-6">
           <div className="flex gap-2 text-sm text-muted-foreground">
-            <div className="flex-shrink-0">💡</div>
+            <div className="shrink-0">💡</div>
             <div>
               <p className="font-medium mb-1">Registration Tips:</p>
               <ul className="list-disc list-inside space-y-1">

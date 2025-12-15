@@ -69,7 +69,7 @@ import { getAllPrisons } from '@/lib/api/prisons';
 export default function PrisonersPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isSuperAdmin } = usePermissions();
   
   const [prisoners, setPrisoners] = useState([]);
   const [prisons, setPrisons] = useState([]);
@@ -101,7 +101,7 @@ export default function PrisonersPage() {
 
   const loadPrisons = async () => {
     try {
-      const response = await getAllPrisons({ limit: 100 });
+      const response = await getAllPrisons();
       setPrisons(response.data);
     } catch (error) {
       console.error('Failed to load prisons:', error);
@@ -213,6 +213,7 @@ export default function PrisonersPage() {
 
   const canManagePrisoners = hasPermission(PERMISSIONS.MANAGE_PRISONERS);
   const canViewPrisoners = hasPermission(PERMISSIONS.VIEW_PRISONERS);
+
 
   // Calculate statistics
   const activePrisoners = prisoners.filter(p => p.status === 'Active').length;
@@ -339,25 +340,27 @@ export default function PrisonersPage() {
           {/* Filter Panel */}
           {showFilters && (
             <div className="grid gap-4 md:grid-cols-4 mb-4 p-4 border rounded-lg bg-muted/50">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Prison</label>
-                <Select value={selectedPrison} onValueChange={(value) => {
-                  setSelectedPrison(value);
-                  handleFilterChange();
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Prisons" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Prisons</SelectItem>
-                    {prisons.map((prison) => (
-                      <SelectItem key={prison.prisonId} value={prison.prisonId.toString()}>
-                        {prison.prisonName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {isSuperAdmin() && (
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Prison</label>
+                  <Select value={selectedPrison} onValueChange={(value) => {
+                    setSelectedPrison(value);
+                    handleFilterChange();
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Prisons" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Prisons</SelectItem>
+                      {prisons.map((prison) => (
+                        <SelectItem key={prison.prisonId} value={prison.prisonId.toString()}>
+                          {prison.prisonName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div>
                 <label className="text-sm font-medium mb-2 block">Status</label>
@@ -415,7 +418,7 @@ export default function PrisonersPage() {
           )}
 
           {/* Table */}
-          <div className="rounded-md border">
+          <div className="rounded-md">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -532,13 +535,13 @@ export default function PrisonersPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => toast.info('View details page coming soon')}>
+                            <DropdownMenuItem onClick={() => router.push(`/prisoners/${prisoner.prisonerId}`)}>
                               <Eye className="mr-2 h-4 w-4" />
                               View Details
                             </DropdownMenuItem>
                             {canManagePrisoners && (
                               <>
-                                <DropdownMenuItem onClick={() => toast.info('Edit page coming soon')}>
+                                <DropdownMenuItem onClick={() => router.push(`/prisoners/${prisoner.prisonerId}/edit`)}>
                                   <Edit className="mr-2 h-4 w-4" />
                                   Edit
                                 </DropdownMenuItem>
