@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { usePermissions } from '@/hooks/usePermissions';
 
 // Date formatting helper
 const formatDate = (date) => {
@@ -34,7 +35,7 @@ const formatDate = (date) => {
   });
 };
 
-const basicDetailsSchema = z.object({
+const basicDetailsSchema = (isSuperAdmin) => z.object({
   full_name: z.string().min(2, 'Full name must be at least 2 characters'),
   nic: z.string().min(10, 'NIC must be at least 10 characters').max(12, 'NIC must be at most 12 characters'),
   case_number: z.string().min(1, 'Case number is required'),
@@ -43,12 +44,16 @@ const basicDetailsSchema = z.object({
   nationality: z.string().min(2, 'Nationality is required'),
   admission_date: z.date({ required_error: 'Admission date is required' }),
   expected_release_date: z.date({ required_error: 'Expected release date is required' }),
-  prison_id: z.string().min(1, 'Prison is required'),
+  prison_id: isSuperAdmin
+      ? z.string().min(1, 'Prison is required')
+      : z.string().optional(),
   cell_number: z.string().optional(),
   social_status: z.string().optional(),
 });
 
 export default function BasicDetailsStep({ initialData, prisons, onNext, isLoading }) {
+  const { isSuperAdmin } = usePermissions();
+  
   const {
     register,
     handleSubmit,
@@ -56,7 +61,7 @@ export default function BasicDetailsStep({ initialData, prisons, onNext, isLoadi
     setValue,
     watch,
   } = useForm({
-    resolver: zodResolver(basicDetailsSchema),
+    resolver: zodResolver(basicDetailsSchema(isSuperAdmin())),
     defaultValues: {
       full_name: initialData?.full_name || '',
       nic: initialData?.nic || '',
@@ -66,7 +71,7 @@ export default function BasicDetailsStep({ initialData, prisons, onNext, isLoadi
       nationality: initialData?.nationality || 'Sri Lankan',
       admission_date: initialData?.admission_date ? new Date(initialData.admission_date) : new Date(),
       expected_release_date: initialData?.expected_release_date ? new Date(initialData.expected_release_date) : undefined,
-      prison_id: initialData?.prison_id || '',
+      prison_id: initialData?.prison_id.toString() || '',
       cell_number: initialData?.cell_number || '',
       social_status: initialData?.social_status || '',
     },
@@ -78,6 +83,7 @@ export default function BasicDetailsStep({ initialData, prisons, onNext, isLoadi
 
   const onSubmit = (data) => {
     // Format dates to YYYY-MM-DD
+    console.log("On submit")
     const formattedData = {
       ...data,
       birthday: data.birthday.toISOString().split('T')[0],
@@ -209,29 +215,31 @@ export default function BasicDetailsStep({ initialData, prisons, onNext, isLoadi
         </div>
 
         {/* Prison */}
-        <div className="space-y-2">
-          <Label htmlFor="prison_id">
-            Prison Facility <span className="text-red-500">*</span>
-          </Label>
-          <Select
-            value={watch('prison_id')}
-            onValueChange={(value) => setValue('prison_id', value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select prison" />
-            </SelectTrigger>
-            <SelectContent>
-              {prisons.map((prison) => (
-                <SelectItem key={prison.prisonId} value={prison.prisonId.toString()}>
-                  {prison.prisonName} - {prison.location}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {errors.prison_id && (
-            <p className="text-sm text-red-500">{errors.prison_id.message}</p>
-          )}
-        </div>
+        {isSuperAdmin() && (
+          <div className="space-y-2">
+            <Label htmlFor="prison_id">
+              Prison Facility <span className="text-red-500">*</span>
+            </Label>
+            <Select
+              value={watch('prison_id')}
+              onValueChange={(value) => setValue('prison_id', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select prison" />
+              </SelectTrigger>
+              <SelectContent>
+                {prisons.map((prison) => (
+                  <SelectItem key={prison.prisonId} value={prison.prisonId.toString()}>
+                    {prison.prisonName} - {prison.location}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.prison_id && (
+              <p className="text-sm text-red-500">{errors.prison_id.message}</p>
+            )}
+          </div>
+        )}
 
         {/* Cell Number */}
         <div className="space-y-2">
