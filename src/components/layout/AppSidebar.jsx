@@ -88,8 +88,8 @@ export function AppSidebar() {
   return (
     <Sidebar>
       {/* Sidebar Header */}
-      <SidebarHeader className="border-b">
-        <div className="flex items-center gap-2 px-4 py-3">
+      <SidebarHeader className="border-b h-16">
+        <div className="flex items-center gap-2 px-4 py-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
             <Shield className="h-5 w-5 text-primary-foreground" />
           </div>
