@@ -9,6 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Table,
   TableBody,
@@ -42,6 +44,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -60,11 +70,14 @@ import {
   ChevronRight,
   Filter,
   X,
+  LogOut,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PERMISSIONS } from '@/lib/utils/constants';
-import { getAllPrisoners, deletePrisoner } from '@/lib/api/prisoners';
+import { getAllPrisoners, deletePrisoner, releasePrisoner, transferPrisoner } from '@/lib/api/prisoners';
 import { getAllPrisons } from '@/lib/api/prisons';
+import axios from 'axios';
 
 export default function PrisonersPage() {
   const router = useRouter();
@@ -89,7 +102,13 @@ export default function PrisonersPage() {
 
   // Dialog states
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [selectedPrisoner, setSelectedPrisoner] = useState(null);
+  
+  // Transfer form state
+  const [transferPrisonId, setTransferPrisonId] = useState('');
+  const [transferReason, setTransferReason] = useState('');
+  const [isTransferring, setIsTransferring] = useState(false);
 
   useEffect(() => {
     loadPrisons();
@@ -158,19 +177,55 @@ export default function PrisonersPage() {
 
   const handleDeletePrisoner = async () => {
     try {
-      await deletePrisoner(selectedPrisoner.prisonerId);
-      toast.success('Prisoner record deleted successfully');
+      await releasePrisoner(selectedPrisoner.prisonerId);
+      toast.success('Prisoner released successfully');
       setIsDeleteDialogOpen(false);
       setSelectedPrisoner(null);
       loadPrisoners();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to delete prisoner');
+      toast.error(error.response?.data?.message || 'Failed to release prisoner');
     }
   };
 
   const openDeleteDialog = (prisoner) => {
     setSelectedPrisoner(prisoner);
     setIsDeleteDialogOpen(true);
+  };
+
+  const openTransferDialog = (prisoner) => {
+    setSelectedPrisoner(prisoner);
+    setTransferPrisonId('');
+    setTransferReason('');
+    setIsTransferDialogOpen(true);
+  };
+
+  const handleTransferPrisoner = async () => {
+    if (!transferPrisonId) {
+      toast.error('Please select a target prison');
+      return;
+    }
+    if (!transferReason.trim()) {
+      toast.error('Please provide a transfer reason');
+      return;
+    }
+
+    try {
+      setIsTransferring(true);
+      
+      await transferPrisoner(selectedPrisoner.prisonerId, {transferPrisonId, transferReason})
+
+      toast.success('Prisoner transferred successfully');
+      setIsTransferDialogOpen(false);
+      setSelectedPrisoner(null);
+      setTransferPrisonId('');
+      setTransferReason('');
+      loadPrisoners();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to transfer prisoner');
+      console.error('Transfer error:', error);
+    } finally {
+      setIsTransferring(false);
+    }
   };
 
   const getInitials = (fullName) => {
@@ -214,6 +269,10 @@ export default function PrisonersPage() {
   const canManagePrisoners = hasPermission(PERMISSIONS.MANAGE_PRISONERS);
   const canViewPrisoners = hasPermission(PERMISSIONS.VIEW_PRISONERS);
 
+  // Get available prisons for transfer (exclude current prison)
+  const getAvailablePrisonsForTransfer = (currentPrisonId) => {
+    return prisons.filter(prison => prison.prisonId !== currentPrisonId);
+  };
 
   // Calculate statistics
   const activePrisoners = prisoners.filter(p => p.status === 'Active').length;
@@ -375,7 +434,6 @@ export default function PrisonersPage() {
                     <SelectItem value="all">All Statuses</SelectItem>
                     <SelectItem value="Active">Active</SelectItem>
                     <SelectItem value="Released">Released</SelectItem>
-                    <SelectItem value="Transferred">Transferred</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -429,6 +487,7 @@ export default function PrisonersPage() {
                   <TableHead>Prison / Cell</TableHead>
                   <TableHead>Admission Date</TableHead>
                   <TableHead>Expected Release</TableHead>
+                  <TableHead>Actual Release Date</TableHead>
                   <TableHead className="text-center">Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -442,6 +501,7 @@ export default function PrisonersPage() {
                       <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-16" /></TableCell>
@@ -520,6 +580,12 @@ export default function PrisonersPage() {
                           {formatDate(prisoner.expectedReleaseDate)}
                         </div>
                       </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 text-sm">
+                          <Calendar className="h-3 w-3 text-muted-foreground" />
+                          {formatDate(prisoner.actualReleaseDate)}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-center">
                         <Badge variant={getStatusColor(prisoner.status)}>
                           {prisoner.status}
@@ -545,14 +611,22 @@ export default function PrisonersPage() {
                                   <Edit className="mr-2 h-4 w-4" />
                                   Edit
                                 </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem 
-                                  onClick={() => openDeleteDialog(prisoner)}
-                                  className="text-red-600"
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete
-                                </DropdownMenuItem>
+                                {prisoner.status === 'Active' && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => openTransferDialog(prisoner)}>
+                                      <ArrowRightLeft className="mr-2 h-4 w-4" />
+                                      Transfer
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={() => openDeleteDialog(prisoner)}
+                                      className="text-red-600"
+                                    >
+                                      <LogOut className="mr-2 h-4 w-4" />
+                                      Release
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
                               </>
                             )}
                           </DropdownMenuContent>
@@ -596,20 +670,91 @@ export default function PrisonersPage() {
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Transfer Prisoner Dialog */}
+      <Dialog open={isTransferDialogOpen} onOpenChange={setIsTransferDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Transfer Prisoner</DialogTitle>
+            <DialogDescription>
+              Transfer <strong>{selectedPrisoner?.fullName}</strong> to another prison facility
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="current-prison">Current Prison</Label>
+              <Input
+                id="current-prison"
+                value={selectedPrisoner?.prison?.prisonName || 'N/A'}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="target-prison">Target Prison <span className="text-red-500">*</span></Label>
+              <Select value={transferPrisonId} onValueChange={setTransferPrisonId}>
+                <SelectTrigger id="target-prison">
+                  <SelectValue placeholder="Select target prison" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getAvailablePrisonsForTransfer(selectedPrisoner?.prison?.prisonId).map((prison) => (
+                    <SelectItem key={prison.prisonId} value={prison.prisonId.toString()}>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                        {prison.prisonName}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="transfer-reason">Transfer Reason <span className="text-red-500">*</span></Label>
+              <Textarea
+                id="transfer-reason"
+                placeholder="e.g., capacity limit, security concerns, medical reasons..."
+                value={transferReason}
+                onChange={(e) => setTransferReason(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsTransferDialogOpen(false);
+                setTransferPrisonId('');
+                setTransferReason('');
+              }}
+              disabled={isTransferring}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleTransferPrisoner}
+              disabled={isTransferring || !transferPrisonId || !transferReason.trim()}
+            >
+              {isTransferring ? 'Transferring...' : 'Transfer Prisoner'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Release Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Prisoner Record</AlertDialogTitle>
+            <AlertDialogTitle>Release Prisoner</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete the record for <strong>{selectedPrisoner?.fullName}</strong>? 
-              This action cannot be undone and will remove all associated data.
+              Are you sure you want to release <strong>{selectedPrisoner?.fullName}</strong>? 
+              This will mark the prisoner as released and they will no longer be held in custody.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeletePrisoner} className="bg-red-600">
-              Delete
+              Release
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

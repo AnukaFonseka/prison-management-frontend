@@ -103,7 +103,7 @@ export default function DashboardPage() {
       title: 'Register Prisoner',
       description: 'Add a new prisoner to the system',
       icon: Shield,
-      href: '/prisoners/new',
+      href: '/prisoners/add',
       show: hasPermission(PERMISSIONS.REGISTER_PRISONER),
       variant: 'default',
     },
@@ -111,7 +111,7 @@ export default function DashboardPage() {
       title: 'Record Work',
       description: 'Log prisoner work activities',
       icon: Briefcase,
-      href: '/work-records/new',
+      href: '/work-records',
       show: hasPermission(PERMISSIONS.RECORD_WORK),
       variant: 'secondary',
     },
@@ -119,34 +119,26 @@ export default function DashboardPage() {
       title: 'Record Behaviour',
       description: 'Log behaviour incidents',
       icon: FileText,
-      href: '/behaviour-records/new',
+      href: '/behaviour-records',
       show: hasPermission(PERMISSIONS.RECORD_BEHAVIOUR),
       variant: 'secondary',
     },
     {
-      title: 'Schedule Visit',
+      title: 'Manage Visit',
       description: 'Book a prisoner visit',
       icon: CalendarCheck,
-      href: '/visits/schedule',
+      href: '/visits',
       show: hasPermission(PERMISSIONS.SCHEDULE_VISIT),
       variant: 'secondary',
     },
     {
-      title: 'Add User',
+      title: 'Manage Users',
       description: 'Create new staff account',
       icon: Users,
-      href: '/users/new',
+      href: '/users',
       show: hasPermission(PERMISSIONS.CREATE_USER),
       variant: 'outline',
-    },
-    {
-      title: 'Generate Report',
-      description: 'Create system reports',
-      icon: BarChart3,
-      href: '/reports',
-      show: hasPermission(PERMISSIONS.GENERATE_REPORTS),
-      variant: 'outline',
-    },
+    }
   ];
 
   // Recent activity mock data
@@ -300,11 +292,7 @@ export default function DashboardPage() {
                 </span>
               </div>
             )}
-            <div className="pt-3">
-              <Button variant="outline" className="w-full" asChild>
-                <Link href="/settings/profile">View Full Profile</Link>
-              </Button>
-            </div>
+            
           </CardContent>
         </Card>
 

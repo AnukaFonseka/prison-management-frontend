@@ -323,7 +323,13 @@ export default function VisitFormDialog({
                     <Users className="h-4 w-4" />
                     Prisoner *
                   </FormLabel>
-                  <Popover open={openPrisonerCombobox} onOpenChange={setOpenPrisonerCombobox}>
+                  <Popover 
+                    open={isEditMode ? false : openPrisonerCombobox} 
+                    onOpenChange={(open) => {
+                      if (!isEditMode) {
+                        setOpenPrisonerCombobox(open);
+                      }
+                    }}>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
@@ -398,7 +404,14 @@ export default function VisitFormDialog({
                     <UserCheck className="h-4 w-4" />
                     Visitor *
                   </FormLabel>
-                  <Popover open={openVisitorCombobox} onOpenChange={setOpenVisitorCombobox}>
+                  <Popover 
+                    open={isEditMode ? false : openVisitorCombobox}
+                    onOpenChange={(open) => {
+                      if (!isEditMode) {
+                        setOpenVisitorCombobox(open);
+                      }
+                    }}
+                  >
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button

@@ -121,7 +121,7 @@ export default function WorkRecordsPage() {
 
   const loadPrisons = async () => {
     try {
-      const response = await getAllPrisons();
+      const response = await getAllPrisons({ limit: 1000 });
       setPrisons(response.data);
     } catch (error) {
       console.error('Failed to load prisons:', error);

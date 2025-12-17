@@ -71,10 +71,10 @@ import VisitFormDialog from '@/components/visits/VisitFormDialog';
 import VisitDetailsDialog from '@/components/visits/VisitDetailsDialog';
 
 const VISIT_STATUSES = {
-  Scheduled: { label: 'Scheduled', color: 'bg-blue-500', icon: Clock },
-  Completed: { label: 'Completed', color: 'bg-green-500', icon: CheckCircle2 },
-  Cancelled: { label: 'Cancelled', color: 'bg-red-500', icon: XCircle },
-  NoShow: { label: 'No Show', color: 'bg-gray-500', icon: AlertCircle },
+  Scheduled: { label: 'Scheduled', color: 'bg-blue-500/10', icon: Clock, boder: 'border-blue-600', text: 'text-blue-600' },
+  Completed: { label: 'Completed', color: 'bg-green-500/10', icon: CheckCircle2, boder: 'border-green-600', text: 'text-green-600' },
+  Cancelled: { label: 'Cancelled', color: 'bg-red-500/10', icon: XCircle, boder: 'border-red-600', text: 'text-red-600' },
+  NoShow: { label: 'No Show', color: 'bg-gray-500/10', icon: AlertCircle, boder: 'border-gray-600', text: 'text-gray-600' },
 };
 
 export default function VisitsPage() {
@@ -240,10 +240,19 @@ export default function VisitsPage() {
   const getStatusBadge = (status) => {
     const statusConfig = VISIT_STATUSES[status] || VISIT_STATUSES.Scheduled;
     const Icon = statusConfig.icon;
+    const color = statusConfig.color;
     
     return (
-      <Badge variant="outline" className={`${statusConfig.color} text-white border-0`}>
-        <Icon className="h-3 w-3 mr-1" />
+      <Badge
+        variant="outline"
+        className={`
+          border ${statusConfig.boder}
+          ${statusConfig.color}
+          ${statusConfig.text}
+          flex items-center
+        `}
+      >
+        <Icon className="h-3 w-3 mr-1 text-current" />
         {statusConfig.label}
       </Badge>
     );

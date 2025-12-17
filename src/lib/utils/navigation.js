@@ -48,6 +48,22 @@ export const navigationConfig = [
     icon: Shield,
     href: '/prisoners',
     permissions: [PERMISSIONS.VIEW_PRISONERS, PERMISSIONS.MANAGE_PRISONERS],
+    children: [
+      {
+        title: 'All Prisoners',
+        href: '/prisoners',
+        permissions: [
+          PERMISSIONS.VIEW_PRISONERS,
+        ],
+      },
+      {
+        title: 'Add Prisoner',
+        href: '/prisoners/add',
+        permissions: [
+          PERMISSIONS.MANAGE_PRISONERS,
+        ],
+      },
+    ],
   },
   {
     title: 'Work Records',
@@ -58,24 +74,24 @@ export const navigationConfig = [
       PERMISSIONS.MANAGE_WORK_RECORDS,
       PERMISSIONS.RECORD_WORK,
     ],
-    children: [
-      {
-        title: 'All Records',
-        href: '/work-records',
-        permissions: [
-          PERMISSIONS.VIEW_WORK_RECORDS,
-          PERMISSIONS.MANAGE_WORK_RECORDS,
-        ],
-      },
-      {
-        title: 'Pending Payments',
-        href: '/work-records/pending-payments',
-        permissions: [
-          PERMISSIONS.APPROVE_PAYMENT,
-          PERMISSIONS.MANAGE_WORK_RECORDS,
-        ],
-      },
-    ],
+    // children: [
+    //   {
+    //     title: 'All Records',
+    //     href: '/work-records',
+    //     permissions: [
+    //       PERMISSIONS.VIEW_WORK_RECORDS,
+    //       PERMISSIONS.MANAGE_WORK_RECORDS,
+    //     ],
+    //   },
+    //   {
+    //     title: 'Pending Payments',
+    //     href: '/work-records/pending-payments',
+    //     permissions: [
+    //       PERMISSIONS.APPROVE_PAYMENT,
+    //       PERMISSIONS.MANAGE_WORK_RECORDS,
+    //     ],
+    //   },
+    // ],
   },
   {
     title: 'Behaviour Records',
@@ -86,21 +102,21 @@ export const navigationConfig = [
       PERMISSIONS.MANAGE_BEHAVIOUR,
       PERMISSIONS.RECORD_BEHAVIOUR,
     ],
-    children: [
-      {
-        title: 'All Records',
-        href: '/behaviour-records',
-        permissions: [PERMISSIONS.VIEW_BEHAVIOUR, PERMISSIONS.MANAGE_BEHAVIOUR],
-      },
-      {
-        title: 'Pending Adjustments',
-        href: '/behaviour-records/pending-adjustments',
-        permissions: [
-          PERMISSIONS.ADJUST_SENTENCE,
-          PERMISSIONS.MANAGE_BEHAVIOUR,
-        ],
-      },
-    ],
+    // children: [
+    //   {
+    //     title: 'All Records',
+    //     href: '/behaviour-records',
+    //     permissions: [PERMISSIONS.VIEW_BEHAVIOUR, PERMISSIONS.MANAGE_BEHAVIOUR],
+    //   },
+    //   {
+    //     title: 'Pending Adjustments',
+    //     href: '/behaviour-records/pending-adjustments',
+    //     permissions: [
+    //       PERMISSIONS.ADJUST_SENTENCE,
+    //       PERMISSIONS.MANAGE_BEHAVIOUR,
+    //     ],
+    //   },
+    // ],
   },
   {
     title: 'Visitors',
@@ -117,35 +133,35 @@ export const navigationConfig = [
       PERMISSIONS.MANAGE_VISITORS,
       PERMISSIONS.SCHEDULE_VISIT,
     ],
-    children: [
-      {
-        title: 'All Visits',
-        href: '/visits',
-        permissions: [PERMISSIONS.VIEW_VISITORS, PERMISSIONS.MANAGE_VISITORS],
-      },
-      {
-        title: 'Schedule Visit',
-        href: '/visits/schedule',
-        permissions: [PERMISSIONS.SCHEDULE_VISIT, PERMISSIONS.MANAGE_VISITORS],
-      },
-      {
-        title: 'Upcoming Visits',
-        href: '/visits/upcoming',
-        permissions: [PERMISSIONS.VIEW_VISITORS, PERMISSIONS.MANAGE_VISITORS],
-      },
-    ],
+    // `children: [
+    //   // {
+    //   //   title: 'All Visits',
+    //   //   href: '/visits',
+    //   //   permissions: [PERMISSIONS.VIEW_VISITORS, PERMISSIONS.MANAGE_VISITORS],
+    //   // },
+    //   // {
+    //   //   title: 'Schedule Visit',
+    //   //   href: '/visits/schedule',
+    //   //   permissions: [PERMISSIONS.SCHEDULE_VISIT, PERMISSIONS.MANAGE_VISITORS],
+    //   // },
+    //   // {
+    //   //   title: 'Upcoming Visits',
+    //   //   href: '/visits/upcoming',
+    //   //   permissions: [PERMISSIONS.VIEW_VISITORS, PERMISSIONS.MANAGE_VISITORS],
+    //   // },
+    // ],`
   },
-  {
-    title: 'Reports',
-    icon: BarChart3,
-    href: '/reports',
-    permissions: [PERMISSIONS.VIEW_REPORTS, PERMISSIONS.GENERATE_REPORTS],
-  },
-  {
-    title: 'Settings',
-    icon: Settings,
-    href: '/settings',
-  },
+  // {
+  //   title: 'Reports',
+  //   icon: BarChart3,
+  //   href: '/reports',
+  //   permissions: [PERMISSIONS.VIEW_REPORTS, PERMISSIONS.GENERATE_REPORTS],
+  // },
+  // {
+  //   title: 'Settings',
+  //   icon: Settings,
+  //   href: '/settings',
+  // },
 ];
 
 /**

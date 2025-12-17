@@ -185,3 +185,22 @@ export const getPrisonerStats = async () => {
   const response = await apiClient.get('/prisoners/stats');
   return response.data;
 };
+
+/**
+ * release prisoner
+ */
+export const releasePrisoner = async (prisonerId) => {
+  const response = await apiClient.post(`/prisoners/${prisonerId}/release`);
+  return response.data;
+};
+
+/**
+ * transfer prisoner
+ */
+export const transferPrisoner = async (prisonerId, data) => {
+  const response = await apiClient.post(`/prisoners/${prisonerId}/transfer`, {
+    target_prison_id: data.transferPrisonId,
+    transfer_reason: data.transferReason
+  });
+  return response.data;
+};

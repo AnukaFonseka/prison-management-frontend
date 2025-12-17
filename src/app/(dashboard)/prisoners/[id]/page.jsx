@@ -13,6 +13,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
   ArrowLeft,
   Edit,
   Trash2,
@@ -29,10 +37,18 @@ import {
   AlertTriangle,
   Download,
   Printer,
+  Briefcase,
+  Activity,
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  UserCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PERMISSIONS } from '@/lib/utils/constants';
 import { getPrisonerById, deletePrisoner } from '@/lib/api/prisoners';
+import apiClient from '@/lib/api/client';
+import { generatePrisonerReport } from '@/lib/reports/prisonerReport';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,7 +69,22 @@ export default function ViewPrisonerPage() {
   
   const [loading, setLoading] = useState(true);
   const [prisoner, setPrisoner] = useState(null);
+  const [workRecords, setWorkRecords] = useState([]);
+  const [workSummary, setWorkSummary] = useState(null);
+  const [behaviorRecords, setBehaviorRecords] = useState([]);
+  const [behaviorSummary, setBehaviorSummary] = useState(null);
+  const [visits, setVisits] = useState([]);
+  const [visitsSummary, setVisitsSummary] = useState(null);
+  const [loadingWork, setLoadingWork] = useState(false);
+  const [loadingBehavior, setLoadingBehavior] = useState(false);
+  const [loadingVisits, setLoadingVisits] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [generatingReport, setGeneratingReport] = useState(false);
+
+  const canViewWork = hasPermission(PERMISSIONS.VIEW_WORK_RECORDS);
+  const canViewBehavior = hasPermission(PERMISSIONS.VIEW_BEHAVIOUR);
+  const canViewVisits = hasPermission(PERMISSIONS.VIEW_VISITORS);
+  const canGenerateReports = hasPermission(PERMISSIONS.GENERATE_REPORTS);
 
   useEffect(() => {
     if (!hasPermission(PERMISSIONS.VIEW_PRISONERS)) {
@@ -70,12 +101,62 @@ export default function ViewPrisonerPage() {
       setLoading(true);
       const response = await getPrisonerById(prisonerId);
       setPrisoner(response.data);
+      
+      // Load work and behavior records if user has permission
+      if (canViewWork) {
+        loadWorkRecords();
+      }
+      if (canViewBehavior) {
+        loadBehaviorRecords();
+      }
+      if (canViewVisits) {
+        loadVisits();
+      }
     } catch (error) {
       toast.error('Failed to load prisoner data');
       console.error(error);
       router.push('/prisoners');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadWorkRecords = async () => {
+    try {
+      setLoadingWork(true);
+      const response = await apiClient.get(`/work-records/prisoner/${prisonerId}?page=1&limit=100`);
+      setWorkRecords(response.data.data || []);
+      setWorkSummary(response.data.summary);
+    } catch (error) {
+      console.error('Failed to load work records:', error);
+    } finally {
+      setLoadingWork(false);
+    }
+  };
+
+  const loadBehaviorRecords = async () => {
+    try {
+      setLoadingBehavior(true);
+      const response = await apiClient.get(`/behaviour-records/prisoner/${prisonerId}?page=1&limit=100`);
+      setBehaviorRecords(response.data.data || []);
+      setBehaviorSummary(response.data.summary);
+    } catch (error) {
+      console.error('Failed to load behavior records:', error);
+    } finally {
+      setLoadingBehavior(false);
+    }
+  };
+
+  const loadVisits = async () => {
+    try {
+      setLoadingVisits(true);
+      const response = await apiClient.get(`/visits/prisoner/${prisonerId}?page=1&limit=100`);
+      setVisits(response.data.data || []);
+      setVisitsSummary(response.data.summary);
+    } catch (error) {
+      console.error('Failed to load visits:', error);
+    } finally {
+      setLoadingVisits(false);
     }
   };
 
@@ -86,6 +167,33 @@ export default function ViewPrisonerPage() {
       router.push('/prisoners');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to delete prisoner');
+    }
+  };
+
+  const handlePrintReport = async () => {
+    if (!prisoner) return;
+
+    try {
+      setGeneratingReport(true);
+      toast.info('Generating report...');
+
+      // Generate the report with all available data
+      const fileName = generatePrisonerReport(prisoner, {
+        workRecords: canViewWork ? workRecords : [],
+        workSummary: canViewWork ? workSummary : null,
+        behaviorRecords: canViewBehavior ? behaviorRecords : [],
+        behaviorSummary: canViewBehavior ? behaviorSummary : null,
+        visits: canViewVisits ? visits : [],
+        visitsSummary: canViewVisits ? visitsSummary : null,
+        generatedBy: user,
+      });
+
+      toast.success(`Report generated successfully: ${fileName}`);
+    } catch (error) {
+      console.error('Error generating report:', error);
+      toast.error('Failed to generate report');
+    } finally {
+      setGeneratingReport(false);
     }
   };
 
@@ -109,6 +217,23 @@ export default function ViewPrisonerPage() {
     });
   };
 
+  const formatTime = (timeString) => {
+    if (!timeString) return 'N/A';
+    // Handle time in HH:MM:SS format
+    const [hours, minutes] = timeString.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'LKR',
+    }).format(amount).replace('LKR', 'Rs.');
+  };
+
   const getInitials = (fullName) => {
     const names = fullName.split(' ');
     return names.map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -124,6 +249,49 @@ export default function ViewPrisonerPage() {
         return 'outline';
       default:
         return 'secondary';
+    }
+  };
+
+  const getVisitStatusColor = (status) => {
+    switch (status) {
+      case 'Scheduled':
+        return 'default';
+      case 'Completed':
+        return 'secondary';
+      case 'Cancelled':
+        return 'destructive';
+      default:
+        return 'outline';
+    }
+  };
+
+  const getBehaviorTypeColor = (type) => {
+    return type === 'Positive' ? 'default' : 'destructive';
+  };
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case 'Minor':
+        return 'secondary';
+      case 'Moderate':
+        return 'default';
+      case 'Severe':
+        return 'destructive';
+      default:
+        return 'secondary';
+    }
+  };
+
+  const getAdjustmentStatusColor = (status) => {
+    switch (status) {
+      case 'Approved':
+        return 'default';
+      case 'Pending':
+        return 'secondary';
+      case 'Rejected':
+        return 'destructive';
+      default:
+        return 'outline';
     }
   };
 
@@ -168,10 +336,15 @@ export default function ViewPrisonerPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
+          {canGenerateReports && (<Button 
+            variant="outline" 
+            size="sm"
+            onClick={handlePrintReport}
+            disabled={generatingReport}
+          >
             <Printer className="mr-2 h-4 w-4" />
-            Print
-          </Button>
+            {generatingReport ? 'Generating...' : 'Print Report'}
+          </Button>)}
           {canManage && (
             <>
               <Button
@@ -182,14 +355,14 @@ export default function ViewPrisonerPage() {
                 <Edit className="mr-2 h-4 w-4" />
                 Edit
               </Button>
-              <Button
+              {/* <Button
                 variant="destructive"
                 size="sm"
                 onClick={() => setShowDeleteDialog(true)}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
-              </Button>
+              </Button> */}
             </>
           )}
         </div>
@@ -294,15 +467,12 @@ export default function ViewPrisonerPage() {
       <Tabs defaultValue="details" className="space-y-4">
         <TabsList>
           <TabsTrigger value="details">Details</TabsTrigger>
-          <TabsTrigger value="photos">
-            Photos ({prisoner.photos?.length || 0})
-          </TabsTrigger>
-          <TabsTrigger value="marks">
-            Body Marks ({prisoner.bodyMarks?.length || 0})
-          </TabsTrigger>
-          <TabsTrigger value="family">
-            Family ({prisoner.familyDetails?.length || 0})
-          </TabsTrigger>
+          <TabsTrigger value="photos">Photos</TabsTrigger>
+          <TabsTrigger value="marks">Body Marks</TabsTrigger>
+          <TabsTrigger value="family">Family</TabsTrigger>
+          {canViewWork && <TabsTrigger value="work">Work Records</TabsTrigger>}
+          {canViewBehavior && <TabsTrigger value="behavior">Behavior Records</TabsTrigger>}
+          {canViewVisits && <TabsTrigger value="visits">Visits</TabsTrigger>}
         </TabsList>
 
         {/* Details Tab */}
@@ -449,24 +619,25 @@ export default function ViewPrisonerPage() {
             </CardHeader>
             <CardContent>
               {prisoner.bodyMarks && prisoner.bodyMarks.length > 0 ? (
-                <div className="space-y-3">
-                  {prisoner.bodyMarks.map((mark) => (
-                    <Card key={mark.markId}>
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <div className="p-2 bg-muted rounded-lg">
-                            <Shield className="h-4 w-4" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Badge variant="outline">{mark.location}</Badge>
-                            </div>
-                            <p className="text-sm">{mark.description}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Location</TableHead>
+                        <TableHead>Description</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {prisoner.bodyMarks.map((mark) => (
+                        <TableRow key={mark.markId}>
+                          <TableCell className="font-medium">
+                            <Badge variant="outline">{mark.location}</Badge>
+                          </TableCell>
+                          <TableCell>{mark.description}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
@@ -492,44 +663,45 @@ export default function ViewPrisonerPage() {
             </CardHeader>
             <CardContent>
               {prisoner.familyDetails && prisoner.familyDetails.length > 0 ? (
-                <div className="space-y-3">
-                  {prisoner.familyDetails.map((member) => (
-                    <Card key={member.familyId}>
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 space-y-3">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h4 className="font-semibold">{member.memberName}</h4>
-                              <Badge variant="outline">{member.relationship}</Badge>
-                              {member.emergencyContact && (
-                                <Badge variant="destructive" className="gap-1">
-                                  <AlertTriangle className="h-3 w-3" />
-                                  Emergency Contact
-                                </Badge>
-                              )}
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Relationship</TableHead>
+                        <TableHead>NIC</TableHead>
+                        <TableHead>Contact</TableHead>
+                        <TableHead>Address</TableHead>
+                        <TableHead>Emergency</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {prisoner.familyDetails.map((member) => (
+                        <TableRow key={member.familyId}>
+                          <TableCell className="font-medium">{member.memberName}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{member.relationship}</Badge>
+                          </TableCell>
+                          <TableCell>{member.nic}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Phone className="h-3 w-3 text-muted-foreground" />
+                              {member.contactNumber}
                             </div>
-                            <div className="grid gap-2 text-sm">
-                              <div className="flex items-center gap-2">
-                                <User className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-muted-foreground">NIC:</span>
-                                <span>{member.nic}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Phone className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-muted-foreground">Phone:</span>
-                                <span>{member.contactNumber}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <MapPin className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-muted-foreground">Address:</span>
-                                <span>{member.address}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                          </TableCell>
+                          <TableCell className="max-w-xs truncate">{member.address}</TableCell>
+                          <TableCell>
+                            {member.emergencyContact && (
+                              <Badge variant="destructive" className="gap-1">
+                                <AlertTriangle className="h-3 w-3" />
+                                Yes
+                              </Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
@@ -540,6 +712,331 @@ export default function ViewPrisonerPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Work Records Tab */}
+        {canViewWork && (
+          <TabsContent value="work">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Briefcase className="h-5 w-5" />
+                      Work Records
+                    </CardTitle>
+                    <CardDescription>
+                      Work assignments and payment history
+                    </CardDescription>
+                  </div>
+                  {workSummary && (
+                    <div className="flex gap-4 text-sm">
+                      <div className="text-right">
+                        <p className="text-muted-foreground">Total Hours</p>
+                        <p className="font-semibold">{workSummary.totalHours}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-muted-foreground">Total Earned</p>
+                        <p className="font-semibold">{formatCurrency(workSummary.totalEarned)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-muted-foreground">Pending</p>
+                        <p className="font-semibold text-orange-600">{formatCurrency(workSummary.totalPending)}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loadingWork ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                ) : workRecords.length > 0 ? (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Task Description</TableHead>
+                          <TableHead className="text-right">Hours</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                          <TableHead>Payment Status</TableHead>
+                          <TableHead>Payment Date</TableHead>
+                          <TableHead>Recorded By</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {workRecords.map((record) => (
+                          <TableRow key={record.workRecordId}>
+                            <TableCell className="font-medium">
+                              {formatDate(record.workDate)}
+                            </TableCell>
+                            <TableCell>{record.taskDescription}</TableCell>
+                            <TableCell className="text-right">{record.hoursWorked}h</TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatCurrency(record.paymentAmount)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={record.paymentStatus === 'Paid' ? 'default' : 'secondary'}>
+                                {record.paymentStatus}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {record.paymentDate ? formatDate(record.paymentDate) : 'N/A'}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {record.recordedBy?.fullName}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Briefcase className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p>No work records found</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* Behavior Records Tab */}
+        {canViewBehavior && (
+          <TabsContent value="behavior">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Activity className="h-5 w-5" />
+                      Behavior Records
+                    </CardTitle>
+                    <CardDescription>
+                      Behavioral incidents and sentence adjustments
+                    </CardDescription>
+                  </div>
+                  {behaviorSummary && (
+                    <div className="flex gap-4 text-sm">
+                      <div className="text-right">
+                        <p className="text-muted-foreground">Total Records</p>
+                        <p className="font-semibold">{behaviorSummary.totalRecords}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-muted-foreground">Positive</p>
+                        <p className="font-semibold text-green-600">{behaviorSummary.positiveCount}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-muted-foreground">Negative</p>
+                        <p className="font-semibold text-red-600">{behaviorSummary.negativeCount}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-muted-foreground">Net Adjustment</p>
+                        <p className={`font-semibold ${behaviorSummary.approvedAdjustment < 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {behaviorSummary.approvedAdjustment} days
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loadingBehavior ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                ) : behaviorRecords.length > 0 ? (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Severity</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Action Taken</TableHead>
+                          <TableHead className="text-right">Adjustment</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Recorded By</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {behaviorRecords.map((record, index) => (
+                          <TableRow key={index}>
+                            <TableCell className="font-medium">
+                              {formatDate(record.incidentDate)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={getBehaviorTypeColor(record.behaviourType)}>
+                                {record.behaviourType === 'Positive' ? (
+                                  <TrendingUp className="h-3 w-3 mr-1" />
+                                ) : (
+                                  <TrendingDown className="h-3 w-3 mr-1" />
+                                )}
+                                {record.behaviourType}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={getSeverityColor(record.severityLevel)}>
+                                {record.severityLevel}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="max-w-xs">
+                              <p className="truncate">{record.description}</p>
+                            </TableCell>
+                            <TableCell className="max-w-xs">
+                              <p className="truncate">{record.actionTaken}</p>
+                            </TableCell>
+                            <TableCell className={`text-right font-medium ${
+                              record.sentenceAdjustmentDays < 0 ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              {record.sentenceAdjustmentDays > 0 ? '+' : ''}
+                              {record.sentenceAdjustmentDays} days
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={getAdjustmentStatusColor(record.adjustmentStatus)}>
+                                {record.adjustmentStatus}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {record.recordedBy?.fullName}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Activity className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p>No behavior records found</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* Visits Tab */}
+        {canViewVisits && (
+          <TabsContent value="visits">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <UserCheck className="h-5 w-5" />
+                      Visit History
+                    </CardTitle>
+                    <CardDescription>
+                      All visits scheduled and completed for this prisoner
+                    </CardDescription>
+                  </div>
+                  {visitsSummary && (
+                    <div className="flex gap-4 text-sm">
+                      <div className="text-right">
+                        <p className="text-muted-foreground">Scheduled</p>
+                        <p className="font-semibold text-blue-600">{visitsSummary.scheduled}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-muted-foreground">Completed</p>
+                        <p className="font-semibold text-green-600">{visitsSummary.completed}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-muted-foreground">Cancelled</p>
+                        <p className="font-semibold text-red-600">{visitsSummary.cancelled}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loadingVisits ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                ) : visits.length > 0 ? (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Visit Date</TableHead>
+                          <TableHead>Visitor</TableHead>
+                          <TableHead>Relationship</TableHead>
+                          <TableHead>Contact</TableHead>
+                          <TableHead>Time Slot</TableHead>
+                          <TableHead>Purpose</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Approved By</TableHead>
+                          <TableHead>Notes</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {visits.map((visit) => (
+                          <TableRow key={visit.visitId}>
+                            <TableCell className="font-medium">
+                              {formatDate(visit.visitDate)}
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{visit.visitor.visitorName}</p>
+                                <p className="text-xs text-muted-foreground">{visit.visitor.nic}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{visit.relationship}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Phone className="h-3 w-3 text-muted-foreground" />
+                                {visit.visitor.mobileNumber}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1 text-sm">
+                                <Clock className="h-3 w-3 text-muted-foreground" />
+                                {formatTime(visit.visitTimeStart)} - {formatTime(visit.visitTimeEnd)}
+                              </div>
+                            </TableCell>
+                            <TableCell className="max-w-xs">
+                              <p className="truncate">{visit.purpose}</p>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={getVisitStatusColor(visit.status)}>
+                                {visit.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {visit.approvedBy?.fullName || 'N/A'}
+                            </TableCell>
+                            <TableCell className="max-w-xs">
+                              <p className="truncate text-sm text-muted-foreground">
+                                {visit.notes || 'No notes'}
+                              </p>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <UserCheck className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p>No visits recorded</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Metadata */}
